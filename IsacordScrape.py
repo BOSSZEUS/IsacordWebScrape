@@ -2,11 +2,23 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import time
+import pandas as pd
+
+def extract_color_name(full_text):
+    """Extracts only the thread color name from the full description."""
+    try:
+        if "Isacord Embroidery Thread" in full_text:
+            parts = full_text.split(" Isacord Embroidery Thread")[0]  # Remove everything after "Isacord Embroidery Thread"
+            color_name = " ".join(parts.split()[1:])  # Remove the thread number and keep the color name
+            return color_name
+        return "Not Found"  # If description doesn't match expected format
+    except Exception as e:
+        return "Not Found"
 
 def get_isacord_colors_selenium(color_numbers):
     driver = webdriver.Chrome()  # Use the appropriate driver for your browser
     driver.get("https://isacordthread.com/search.php")
-    results = {}
+    results = []
 
     for color_number in color_numbers:
         print(f"Searching for color number: {color_number}")
@@ -19,14 +31,31 @@ def get_isacord_colors_selenium(color_numbers):
             time.sleep(2)  # Wait for the page to load
 
             # Extract the color name
-            color_name_element = driver.find_element(By.CSS_SELECTOR, "span.itemname")
-            color_name = color_name_element.text.strip()
-            results[color_number] = color_name
+            try:
+                color_name_element = driver.find_element(By.CSS_SELECTOR, "span.itemname")
+                full_text = color_name_element.text.strip()
+                color_name = extract_color_name(full_text)
+            except:
+                color_name = "Not Found"  # If no element found, return "Not Found"
+
+            # Append structured data
+            results.append({"Thread Number": color_number, "Color Name": color_name})
         except Exception as e:
-            results[color_number] = f"Error: {e}"
+            results.append({"Thread Number": color_number, "Color Name": "Not Found"})
 
     driver.quit()
-    return results
+    
+    # Convert results to a structured table (DataFrame)
+    df = pd.DataFrame(results)
+
+    # Display table in terminal
+    print(df.to_string(index=False))
+
+    # Uncomment below to save as CSV or Excel
+    # df.to_csv("isacord_colors.csv", index=False)
+    # df.to_excel("isacord_colors.xlsx", index=False)
+
+    return df
 
 # Example usage
 color_numbers = [
@@ -86,5 +115,4 @@ color_numbers = [
     '5510', '5513', '5515', '5531', '5542', '5565', '5610', '5613', '5643', '5650', 
     '5743', '5822', '5830', '5832', '6011', '6031', '6051', '6151'
 ]
-results = get_isacord_colors_selenium(color_numbers)
-print(results)
+get_isacord_colors_selenium(color_numbers)
